@@ -1,0 +1,16 @@
+# dependencies
+node_modules/
+dist/
+
+# build / data artifacts
+*.db
+mcp-weather/dist/
+mcp-sqlite/dist/
+public-scraper/books.csv
+public-scraper/books.json
+
+# site preview screenshots (regenerated)
+site/preview-*.png
+
+# os
+.DS_Store

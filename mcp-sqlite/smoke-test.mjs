@@ -1,0 +1,15 @@
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+const transport = new StdioClientTransport({ command: "node", args: ["--experimental-sqlite", "dist/index.js"] });
+const client = new Client({ name: "smoke", version: "1.0.0" });
+await client.connect(transport);
+const { tools } = await client.listTools();
+console.log("Tools:", tools.map(t=>t.name).join(", "));
+const t = await client.callTool({ name: "list_tables", arguments: {} });
+console.log("\nlist_tables ->\n" + t.content[0].text);
+const q = await client.callTool({ name: "run_query", arguments: { sql: "SELECT c.name, SUM(o.amount_pln) total FROM customers c JOIN orders o ON o.customer_id=c.id WHERE o.status='paid' GROUP BY c.id ORDER BY total DESC", limit: 10 } });
+console.log("\nrun_query (top paying customers) ->\n" + q.content[0].text);
+const bad = await client.callTool({ name: "run_query", arguments: { sql: "DELETE FROM customers" } });
+console.log("\nrun_query('DELETE...') ->\n" + bad.content[0].text + "  [isError=" + bad.isError + "]");
+await client.close();
+console.log("\n✅ MCP sqlite smoke test passed");
