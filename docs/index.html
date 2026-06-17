@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>document.documentElement.classList.add("js");</script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Wire AI into your systems — MCP servers & disciplined automation</title>
+<meta name="description" content="I build Model Context Protocol servers and careful automation that connect Claude to your API, your database, and public data — typed, tested, shipped." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #0A0E1A;
+    --surface: #111726;
+    --surface-2: #161E30;
+    --line: #232C42;
+    --fg: #E8EBF2;
+    --muted: #8A93A8;
+    --muted-2: #5C667E;
+    --signal: #FF8A3D;
+    --signal-dim: #B5642C;
+    --connected: #5EE6C4;
+    --display: "Space Grotesk", system-ui, sans-serif;
+    --body: "IBM Plex Sans", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+    --maxw: 1080px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--ink);
+    color: var(--fg);
+    font-family: var(--body);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  ::selection { background: var(--signal); color: var(--ink); }
+
+  a { color: inherit; }
+
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 28px; }
+
+  /* ---------- the wire: vertical spine connecting section nodes ---------- */
+  .spine {
+    position: fixed;
+    left: max(28px, calc((100vw - var(--maxw)) / 2 + 28px));
+    top: 0; bottom: 0;
+    width: 2px;
+    background: linear-gradient(var(--line), var(--line));
+    z-index: 0;
+    pointer-events: none;
+  }
+  .spine::before {
+    content: "";
+    position: absolute;
+    left: -1px; width: 4px; height: 90px;
+    background: linear-gradient(var(--signal), transparent);
+    filter: blur(0.5px);
+    animation: travel 6s linear infinite;
+  }
+  @keyframes travel { 0% { top: -10%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 110%; opacity: 0; } }
+
+  @media (max-width: 760px) { .spine { display: none; } }
+
+  /* ---------- nav ---------- */
+  header.nav {
+    position: relative; z-index: 2;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 22px 0;
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 500; letter-spacing: 0.02em; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--connected);
+         box-shadow: 0 0 0 0 rgba(94,230,196,0.6); animation: pulse 2.6s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(94,230,196,0.5);} 70% { box-shadow: 0 0 0 7px rgba(94,230,196,0);} 100% { box-shadow: 0 0 0 0 rgba(94,230,196,0);} }
+  .nav a.navlink { color: var(--muted); text-decoration: none; margin-left: 22px; transition: color .2s; }
+  .nav a.navlink:hover { color: var(--fg); }
+  @media (max-width: 620px) { .nav .navlinks { display: none; } }
+
+  /* ---------- section scaffold with node markers ---------- */
+  section { position: relative; z-index: 1; padding: 72px 0; }
+  .node-eyebrow {
+    font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--signal);
+    display: flex; align-items: center; gap: 14px; margin-bottom: 20px;
+  }
+  .node-eyebrow::before {
+    content: ""; width: 11px; height: 11px; border-radius: 50%;
+    background: var(--ink); border: 2px solid var(--signal);
+    box-shadow: 0 0 0 4px var(--ink);
+    margin-left: -5.5px;
+  }
+
+  /* ---------- hero ---------- */
+  .hero { padding-top: 40px; padding-bottom: 40px; }
+  .hero h1 {
+    font-family: var(--display); font-weight: 700;
+    font-size: clamp(2.4rem, 6.2vw, 4.3rem);
+    line-height: 1.02; letter-spacing: -0.02em;
+    max-width: 16ch; margin: 14px 0 0;
+  }
+  .hero h1 .amp { color: var(--signal); }
+  .hero .sub {
+    color: var(--muted); font-size: clamp(1.02rem, 1.6vw, 1.22rem);
+    max-width: 56ch; margin-top: 26px;
+  }
+  .hero .sub strong { color: var(--fg); font-weight: 600; }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 34px; }
+  .btn {
+    font-family: var(--mono); font-size: 14px; font-weight: 500;
+    padding: 13px 22px; border-radius: 8px; text-decoration: none;
+    border: 1px solid transparent; transition: transform .15s, background .2s, border-color .2s;
+    display: inline-flex; align-items: center; gap: 9px;
+  }
+  .btn-primary { background: var(--signal); color: var(--ink); font-weight: 600; }
+  .btn-primary:hover { transform: translateY(-2px); }
+  .btn-ghost { border-color: var(--line); color: var(--fg); }
+  .btn-ghost:hover { border-color: var(--signal); }
+
+  /* ---------- handshake terminal (hero signature) ---------- */
+  .terminal {
+    margin-top: 46px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; overflow: hidden; max-width: 640px;
+    box-shadow: 0 30px 60px -30px rgba(0,0,0,0.7);
+  }
+  .term-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 11px 16px; border-bottom: 1px solid var(--line);
+    font-family: var(--mono); font-size: 12px; color: var(--muted-2);
+  }
+  .term-bar .tdot { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+  .term-bar .label { margin-left: auto; }
+  .term-body {
+    font-family: var(--mono); font-size: 13px; line-height: 1.85;
+    padding: 18px 18px 20px; white-space: pre-wrap; min-height: 168px;
+  }
+  .term-body .tx { color: var(--signal); }
+  .term-body .rx { color: var(--fg); }
+  .term-body .ok { color: var(--connected); }
+  .term-body .dim { color: var(--muted-2); }
+  .cursor { display: inline-block; width: 8px; height: 15px; background: var(--signal);
+            vertical-align: -2px; animation: blink 1.05s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ---------- build cards ---------- */
+  .lead { font-family: var(--display); font-weight: 600; font-size: clamp(1.6rem, 3.4vw, 2.3rem);
+          letter-spacing: -0.01em; line-height: 1.12; max-width: 22ch; }
+  .lead.muted-tail { }
+  .grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 38px;
+  }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 26px 24px; transition: border-color .25s, transform .25s;
+    position: relative;
+  }
+  .card:hover { border-color: var(--signal-dim); transform: translateY(-3px); }
+  .card .kicker { font-family: var(--mono); font-size: 12px; color: var(--signal); letter-spacing: 0.08em; }
+  .card h3 { font-family: var(--display); font-weight: 600; font-size: 1.28rem; margin: 12px 0 10px; letter-spacing: -0.01em; }
+  .card p { color: var(--muted); font-size: 0.97rem; }
+  .card .proof { display: inline-flex; align-items: center; gap: 7px; margin-top: 16px;
+                 font-family: var(--mono); font-size: 12.5px; color: var(--fg);
+                 text-decoration: none; border-bottom: 1px solid var(--line); padding-bottom: 2px; }
+  .card .proof:hover { color: var(--signal); border-color: var(--signal); }
+
+  /* ---------- proof / evidence ---------- */
+  .proof-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 36px; }
+  @media (max-width: 860px) { .proof-grid { grid-template-columns: 1fr; } }
+  .evidence { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .evidence .ehead { font-family: var(--mono); font-size: 12px; color: var(--muted);
+                     padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; gap: 9px; align-items: center; }
+  .evidence pre { font-family: var(--mono); font-size: 12.3px; line-height: 1.7; padding: 16px;
+                  overflow-x: auto; color: var(--fg); }
+  .evidence pre .c { color: var(--connected); } .evidence pre .a { color: var(--signal); } .evidence pre .m { color: var(--muted-2); }
+  .span2 { grid-column: 1 / -1; }
+
+  /* ---------- pricing ---------- */
+  .price-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; margin-top: 38px; }
+  @media (max-width: 860px) { .price-grid { grid-template-columns: 1fr; } }
+  .tier { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 26px 24px; display: flex; flex-direction: column; }
+  .tier.feature { border-color: var(--signal); background: linear-gradient(180deg, rgba(255,138,61,0.06), var(--surface)); }
+  .tier .tname { font-family: var(--mono); font-size: 13px; color: var(--signal); letter-spacing: 0.08em; text-transform: uppercase; }
+  .tier .tprice { font-family: var(--display); font-weight: 700; font-size: 2rem; margin: 14px 0 2px; }
+  .tier .tprice small { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); font-weight: 400; }
+  .tier .tnote { color: var(--muted-2); font-size: 0.85rem; font-family: var(--mono); }
+  .tier ul { list-style: none; margin: 20px 0 24px; display: flex; flex-direction: column; gap: 11px; }
+  .tier li { color: var(--muted); font-size: 0.95rem; padding-left: 22px; position: relative; }
+  .tier li::before { content: "→"; position: absolute; left: 0; color: var(--signal); }
+  .tier .btn { margin-top: auto; justify-content: center; }
+
+  /* ---------- contact ---------- */
+  .contact { text-align: left; }
+  .contact h2 { font-family: var(--display); font-weight: 700; font-size: clamp(2rem, 5vw, 3.2rem); letter-spacing: -0.02em; max-width: 18ch; }
+  .contact p { color: var(--muted); max-width: 52ch; margin-top: 18px; }
+  footer { border-top: 1px solid var(--line); margin-top: 40px; padding: 30px 0 60px;
+           font-family: var(--mono); font-size: 12.5px; color: var(--muted-2);
+           display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+
+  html.js .reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s ease, transform .7s ease; }
+  html.js .reveal.in { opacity: 1; transform: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .reveal { opacity: 1; transform: none; }
+    html { scroll-behavior: auto; }
+  }
+  :focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="spine" aria-hidden="true"></div>
+
+<div class="wrap">
+  <header class="nav">
+    <div class="brand"><span class="dot" aria-hidden="true"></span> mkdev<span style="color:var(--muted-2)">/integrations</span></div>
+    <nav class="navlinks" aria-label="Primary">
+      <a class="navlink" href="#build">What I build</a>
+      <a class="navlink" href="#proof">Proof</a>
+      <a class="navlink" href="#pricing">Pricing</a>
+      <a class="navlink" href="#contact">Contact</a>
+    </nav>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero" id="top">
+    <div class="node-eyebrow">MCP servers · integrations · disciplined automation</div>
+    <h1>Wire Claude into the systems you already run.</h1>
+    <p class="sub">I build <strong>Model Context Protocol servers</strong> and careful automation that connect AI to your <strong>API</strong>, your <strong>database</strong>, and <strong>public data</strong> — typed, tested, and shipped. Not a prototype that breaks next week.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="#pricing">See the packages →</a>
+      <a class="btn btn-ghost" href="#proof">See it actually run</a>
+    </div>
+
+    <div class="terminal" role="img" aria-label="A live MCP protocol handshake: initialize, list tools, then a get_current_weather call returning 13 degrees and overcast for Warsaw, marked connected.">
+      <div class="term-bar">
+        <span class="tdot"></span><span class="tdot"></span><span class="tdot"></span>
+        <span class="label">mcp-weather · stdio</span>
+      </div>
+      <div class="term-body" id="term"></div>
+    </div>
+  </section>
+
+  <!-- BUILD -->
+  <section id="build">
+    <div class="node-eyebrow">What I build</div>
+    <h2 class="lead">Three kinds of plumbing between your AI and your data.</h2>
+    <div class="grid">
+      <article class="card reveal">
+        <div class="kicker">/ connect</div>
+        <h3>API → MCP server</h3>
+        <p>Wrap any REST or GraphQL API as a clean, typed MCP server your team can call from Claude or Cursor. Auth, error handling, and rate limits handled properly.</p>
+        <a class="proof" href="https://github.com/dismaaay/mcp-integrations/tree/main/mcp-weather">↳ reference: mcp-weather</a>
+      </article>
+      <article class="card reveal">
+        <div class="kicker">/ query</div>
+        <h3>Safe database access</h3>
+        <p>Let AI answer questions about your data without touching it. Read-only connection, SELECT-only guard, row caps, audit-friendly. The pattern most teams actually want.</p>
+        <a class="proof" href="https://github.com/dismaaay/mcp-integrations/tree/main/mcp-sqlite">↳ reference: mcp-sqlite-safe</a>
+      </article>
+      <article class="card reveal">
+        <div class="kicker">/ collect</div>
+        <h3>Hard-target scraping & automation</h3>
+        <p>Public data extraction and request-level automation that survives messy, JS-heavy sites — built polite, resilient, and on the right side of the line.</p>
+        <a class="proof" href="https://github.com/dismaaay/mcp-integrations/tree/main/public-scraper">↳ reference: public-scraper</a>
+      </article>
+    </div>
+  </section>
+
+  <!-- PROOF -->
+  <section id="proof">
+    <div class="node-eyebrow">Proof, not promises</div>
+    <h2 class="lead">Every claim above is something you can run.</h2>
+    <div class="proof-grid">
+      <div class="evidence reveal">
+        <div class="ehead"><span class="dot" style="background:var(--connected)"></span> mcp-weather · live tool call</div>
+<pre><span class="m">$ node smoke-test.mjs</span>
+<span class="a">Tools:</span> get_current_weather, get_forecast, geocode_location
+<span class="m"># get_current_weather { "location": "Warsaw" }</span>
+Current weather in Warsaw, Mazovia, Poland:
+• Conditions: Overcast (night)
+• Temperature: 13°C (feels like 10.1°C)
+• Wind: 20.2 km/h
+<span class="c">✅ MCP smoke test passed</span></pre>
+      </div>
+      <div class="evidence reveal">
+        <div class="ehead"><span class="dot" style="background:var(--connected)"></span> mcp-sqlite-safe · guard + query</div>
+<pre><span class="m"># run_query — top paying customers</span>
+name           | total
+-------------- | ------
+Maria García   | 2500
+Anna Kowalska  | 1650.5
+Jan Nowak      | 1320
+<span class="m"># run_query("DELETE FROM customers")</span>
+<span class="a">Rejected:</span> Only SELECT queries are allowed.
+<span class="c">✅ writes blocked, reads work</span></pre>
+      </div>
+      <div class="evidence reveal span2">
+        <div class="ehead"><span class="dot" style="background:var(--connected)"></span> public-scraper · polite run</div>
+<pre><span class="m">$ uv run scraper.py --max-pages 3</span>
+INFO   robots.txt allows scraping. Good to go.
+INFO   Fetching page 1 … +20 books (total 20)
+INFO   Fetching page 2 … +20 books (total 40)
+INFO   Fetching page 3 … +20 books (total 60)
+INFO   Wrote books.json and books.csv (60 rows)
+INFO   Done in 4.4s — 60 books, avg price £35.00     <span class="c">● rate-limited · robots-checked</span></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section id="pricing">
+    <div class="node-eyebrow">Packages</div>
+    <h2 class="lead">Fixed scope, fixed price. You know the number before we start.</h2>
+    <div class="price-grid">
+      <div class="tier reveal">
+        <div class="tname">Custom MCP Server</div>
+        <div class="tprice">€149 <small>~640 zł</small></div>
+        <div class="tnote">delivered in 3 days · refund if it fails the handshake</div>
+        <ul>
+          <li>Your REST/GraphQL API wrapped as an MCP server</li>
+          <li>Up to 3 tools, typed inputs, error handling</li>
+          <li>README + Claude Desktop config</li>
+          <li>End-to-end protocol handshake test</li>
+        </ul>
+        <a class="btn btn-ghost" href="https://buy.stripe.com/3cIcN6gjl4AQgub40H1gs01">Buy &amp; book →</a>
+      </div>
+      <div class="tier feature reveal">
+        <div class="tname">Integration · Standard</div>
+        <div class="tprice">€290 <small>~1240 zł</small></div>
+        <div class="tnote">4–6 days · refund if it fails acceptance</div>
+        <ul>
+          <li>Multi-endpoint MCP server or safe DB access</li>
+          <li>Auth, access control, row caps</li>
+          <li>Test suite + handshake verification</li>
+          <li>Two rounds of revisions</li>
+        </ul>
+        <a class="btn btn-primary" href="https://buy.stripe.com/cNi14offhd7mcdV2WD1gs02">Buy &amp; book →</a>
+      </div>
+      <div class="tier reveal">
+        <div class="tname">MCP Pro Starter Kit</div>
+        <div class="tprice">€39 <small>~165 zł · instant download</small></div>
+        <div class="tnote">build your own MCP server in an afternoon</div>
+        <ul>
+          <li>2 production-ready MCP server templates (TS)</li>
+          <li>API-wrapper + safe read-only database server</li>
+          <li>Typed tools, tests, handshake test</li>
+          <li>Setup guide + Claude Desktop config</li>
+        </ul>
+        <a class="btn btn-ghost" href="https://buy.stripe.com/bJeeVe4AD5EUb9R40H1gs03">Get the kit →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTACT -->
+  <section id="contact" class="contact">
+    <div class="node-eyebrow">Start here</div>
+    <h2>Tell me what you want Claude to reach, and I'll wire it.</h2>
+    <p>Pick a package and check out — the Custom MCP Server tier is fully refundable if it doesn't pass the protocol handshake, so there's no risk in starting. After payment you'll get a short intake form to describe your API, and delivery in 3 days.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://buy.stripe.com/3cIcN6gjl4AQgub40H1gs01">Buy the Custom MCP Server →</a>
+      <a class="btn btn-ghost" href="#pricing">Compare packages</a>
+    </div>
+  </section>
+
+  <footer>
+    <span>mkdev/integrations — MCP servers &amp; automation</span>
+    <span>Built &amp; verified locally · 2026</span>
+  </footer>
+</div>
+
+<script>
+  // Hero handshake — types the real protocol exchange. Respects reduced motion.
+  (function () {
+    const term = document.getElementById("term");
+    if (!term) return;
+    const lines = [
+      { c: "tx", t: "→ initialize" },
+      { c: "dim", t: "  client: claude-desktop   server: mcp-weather v1.0.0" },
+      { c: "rx", t: "← tools: get_current_weather, get_forecast, geocode_location" },
+      { c: "tx", t: '→ get_current_weather { "location": "Warsaw" }' },
+      { c: "rx", t: "← 13°C · Overcast · feels like 10.1°C" },
+      { c: "ok", t: "● connected — 4 ms" },
+    ];
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (reduce) {
+      term.innerHTML = lines.map(l => `<span class="${l.c}">${escape(l.t)}</span>`).join("\n");
+      return;
+    }
+    function escape(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+    let li = 0;
+    function typeLine() {
+      if (li >= lines.length) return;
+      const line = lines[li];
+      const span = document.createElement("span");
+      span.className = line.c;
+      term.appendChild(span);
+      const cur = document.createElement("span");
+      cur.className = "cursor";
+      term.appendChild(cur);
+      let ci = 0;
+      const speed = line.c === "dim" ? 7 : 16;
+      (function typeChar() {
+        if (ci <= line.t.length) {
+          span.innerHTML = escape(line.t.slice(0, ci));
+          ci++;
+          setTimeout(typeChar, speed);
+        } else {
+          term.removeChild(cur);
+          term.appendChild(document.createTextNode("\n"));
+          li++;
+          setTimeout(typeLine, line.c === "ok" ? 0 : 260);
+        }
+      })();
+    }
+    setTimeout(typeLine, 500);
+  })();
+
+  // Scroll reveal
+  (function () {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } });
+    }, { threshold: 0.18 });
+    document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+  })();
+</script>
+</body>
+</html>
