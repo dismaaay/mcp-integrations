@@ -14,3 +14,6 @@ site/preview-*.png
 
 # os
 .DS_Store
+
+# internal sales playbook (kept local)
+SELLING.md
